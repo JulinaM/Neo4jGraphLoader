@@ -32,8 +32,21 @@ object DBHolder{
                 "MERGE (j:job {job_id: {job_id}})" +
                 "MERGE (h)- [r:mem_usage]-(j)"
         val job_id = "job_"+ row(1).asInstanceOf[String]
-        System.out.println(job_id)
+        //System.out.println(job_id)
         write(query, parameters("host_id", row(0).asInstanceOf[String], "job_id", job_id))
+
+        val dps: Map[String, Float] = row(2).asInstanceOf[Map[String, Float]]
+        System.out.println("DPS EMPTY:: "+dps.empty)
+        var counter: Int = 0
+        for ((k,v) <- dps) {
+            val relationKey = "id_" + counter
+            System.out.println("""relation_id: %s  | timestamp: %s, memory: %s """.format(relationKey, k, v ))
+            val newQuery = "MATCH (h:host {host_id: {host_id} })-[r:mem_usage]-(j: job {job_id: {job_id} })" +
+                    " SET r.%s = '[timestamp = %s , memory = %s]' return r".format(relationKey, k, v.toString)
+            write(newQuery,  parameters("host_id", row(0).asInstanceOf[String], "job_id", job_id ))
+            counter = counter + 1
+        }
+
     }
 
     @Deprecated
