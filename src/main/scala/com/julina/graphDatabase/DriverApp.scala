@@ -27,14 +27,17 @@ object DriverApp {
         val df = spark.sqlContext.sql("select tags.host as host, tags.jobid as job from node")
 
         System.out.println("-------------------------- WRITING TO NEO4J DATABASE----------------------------")
-        val rdd = df.repartition(10)
-            rdd.mapPartitions(partition => {
+        val rdd = df.repartition(10).rdd
+        val newrdd = rdd.mapPartitions(partition => {
                 val newPartition = partition.map(x => {
                     DBHolder.prepareAndWrite(x)
                 }).toList
-                DBHolder.close()
                 newPartition.iterator
-            })
+            }).cache()
+        System.out.println("-------------------------- Successful !! ------------------------------------------------------")
+        System.out.println("-------------------------- Total "+ newrdd.count()+ " nodes written to NEO4J Database. --------- ")
+        System.out.println("-------------------------- Shutting down APACHE SPARK !! ---------------------------------------")
+        spark.close()
 
     }
 }

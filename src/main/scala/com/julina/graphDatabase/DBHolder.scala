@@ -31,7 +31,9 @@ object DBHolder{
         val query = "MERGE(h:host {host_id: {host_id}})" +
                 "MERGE (j:job {job_id: {job_id}})" +
                 "MERGE (h)- [r:mem_usage]-(j)"
-        write(query, parameters("host_id", row(0).asInstanceOf[String], "job_id", row(1).asInstanceOf[String]))
+        val job_id = "job_"+ row(1).asInstanceOf[String]
+        System.out.println(job_id)
+        write(query, parameters("host_id", row(0).asInstanceOf[String], "job_id", job_id))
     }
 
     @Deprecated
