@@ -47,6 +47,19 @@
         <artifactId>neo4j-java-driver</artifactId>
         <version>1.7.3</version>
     </dependency>
+      <dependency>
+          <groupId>org.jetbrains</groupId>
+          <artifactId>annotations-java5</artifactId>
+          <version>RELEASE</version>
+          <scope>compile</scope>
+      </dependency>
+      <!-- https://mvnrepository.com/artifact/neo4j-contrib/neo4j-spark-connector -->
+<!--      <dependency>-->
+<!--          <groupId>neo4j-contrib</groupId>-->
+<!--          <artifactId>neo4j-spark-connector</artifactId>-->
+<!--          <version>2.4.0</version>-->
+<!--      </dependency>-->
+
 
 
       <!--    <dependency>-->
@@ -139,6 +152,14 @@
                     </configuration>
                 </execution>
             </executions>
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <source>7</source>
+                <target>7</target>
+            </configuration>
         </plugin>
     </plugins>
   </build>
