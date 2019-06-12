@@ -1,11 +1,12 @@
 package com.julina.graphDatabase
 import org.apache.spark.sql.Row
+import org.json4s.jackson.JsonMethods.parse
 import org.neo4j.driver.v1.Values.parameters
-import org.neo4j.driver.v1.{AuthTokens, GraphDatabase, Session, Transaction, TransactionWork, Value}
+import org.neo4j.driver.v1._
 
 
 object DBHolder{
-    val driver = GraphDatabase.driver("bolt://wasp.cs.kent.edu/7687", AuthTokens.basic("neo4j", "password"))
+    val driver = GraphDatabase.driver("bolt://jupyter.guans.cs.kent.edu/7687", AuthTokens.basic("neo4j", "password"))
 
     def write(query: String, parameters: Value): Unit = {
         try {
@@ -28,40 +29,32 @@ object DBHolder{
     }
 
     def prepareAndWrite(row: Row): Unit = {
+        //        println(row(2).asInstanceOf[String] +"::"+ row(1).asInstanceOf[String] )
+        val tagMap: Map[String, Int] = parse(row(2).asInstanceOf[String]).values.asInstanceOf[Map[String, Int]]
+        val host = tagMap.getOrElse("host", "null_host").asInstanceOf[String]
+        val job = "job_" + tagMap.getOrElse("jobid", 0).asInstanceOf[String]
+        println(host + "\t" + job)
+        ////        tagMap.foreach{ case (key: String, value: String) => println(">>> key=" + key + ", value=" + value)}
         val query = "MERGE(h:host {host_id: {host_id}})" +
                 "MERGE (j:job {job_id: {job_id}})" +
                 "MERGE (h)- [r:mem_usage]-(j)"
-        val job_id = "job_"+ row(1).asInstanceOf[String]
-        //System.out.println(job_id)
-        write(query, parameters("host_id", row(0).asInstanceOf[String], "job_id", job_id))
+        write(query, parameters("host_id", host, "job_id", job))
+//        //////////////////////////////////////////////////////////////////
 
-        val dps: Map[String, Float] = row(2).asInstanceOf[Map[String, Float]]
-        System.out.println("DPS EMPTY:: "+dps.empty)
+        //        val dpsMap = parse(row(1).asInstanceOf[String]).values.asInstanceOf[Map[String, Float]]
+//        dpsMap.foreach{ case (key: String, value: Any) => println(">>> key=" + key + ", value=" + value)}
+val dps: Map[String, Double] = parse(row(1).asInstanceOf[String]).values.asInstanceOf[Map[String, Double]]
         var counter: Int = 0
         for ((k,v) <- dps) {
             val relationKey = "id_" + counter
             System.out.println("""relation_id: %s  | timestamp: %s, memory: %s """.format(relationKey, k, v ))
             val newQuery = "MATCH (h:host {host_id: {host_id} })-[r:mem_usage]-(j: job {job_id: {job_id} })" +
                     " SET r.%s = '[timestamp = %s , memory = %s]' return r".format(relationKey, k, v.toString)
-            write(newQuery,  parameters("host_id", row(0).asInstanceOf[String], "job_id", job_id ))
+            write(newQuery, parameters("host_id", host, "job_id", job))
             counter = counter + 1
         }
 
-    }
-
-    @Deprecated
-    def writeToNeo4j(host: String, job: String, neo4jSession: Session) = {
-        try {
-            val tx = neo4jSession.beginTransaction()
-            tx.run("MERGE(h:host {host_id: {host_id}})" +
-                    "MERGE (j:job {job_id: {job_id}})" +
-                    "MERGE (h)- [r:mem_usage]-(j)", parameters("host_id", host, "job_id", job))
-            tx.success()// Mark this write as successful.
-        }
-        catch {
-            case e: Exception => println("exception caught: " + e);
-        }
-        System.out.println("DONE")
+//        print("\n"+tagMap+ "\t"+ dps)
     }
 }
 
