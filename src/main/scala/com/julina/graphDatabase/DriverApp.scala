@@ -49,7 +49,24 @@ object DriverApp {
 //        dataFrame.toDF().take(10000).foreach(t=>println(t(0)+ "\t"+t(1))+ "\t" + t(2))
 
 //        dataFrame.toDF().take(10000).foreach(DBHolder.prepareAndWrite(_))//TODO
-        dataFrame.toDF().collect().foreach(DBHolder.prepareAndWrite(_))
+//        dataFrame.toDF().collect().foreach(DBHolder.prepareAndWrite(_))
+        /* val parts = dataFrame.toDF().rdd.partitions
+         for(p <- parts){
+             val idx = p.index
+             val partRDD = dataFrame.toDF().rdd.mapPartitionsWithIndex((index: Int, it: Iterator[org.apache.spark.sql.Row]) => if(index == idx) it else Iterator(), true)
+             //The second argument is true to avoid rdd reshuffling
+             val data = partRDD.collect //data contains all values from a single partition
+             data.foreach(DBHolder.prepareAndWrite(_))
+             //in the form of array
+             //Now you can do with the data whatever you want: iterate, save to a file, etc.
+         }*/
+        dataFrame.toDF().rdd.repartition(16).foreachPartition(partition => {
+            val newPartition = partition.map(x => {
+                DBHolder.prepareAndWrite(x)
+            }).toList
+            newPartition.iterator
+        })
+
         /*val newrdd = dataFrame.toDF().repartition(64).rdd.mapPartitions(partition => {
                  val newPartition = partition.map(x => {
                      DBHolder.prepareAndWrite(x)
