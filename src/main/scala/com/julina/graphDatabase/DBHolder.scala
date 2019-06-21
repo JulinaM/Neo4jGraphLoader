@@ -6,7 +6,7 @@ import org.neo4j.driver.v1._
 
 
 object DBHolder{
-    val driver: Driver = GraphDatabase.driver("bolt://jupyter.guans.cs.kent.edu/7687", AuthTokens.basic("neo4j", "password"))
+    val driver: Driver = GraphDatabase.driver("bolt://wasp.cs.kent.edu/7687", AuthTokens.basic("neo4j", "password"))
 
     def write(query: String, parameters: Value): Unit = {
         try {
@@ -38,25 +38,39 @@ object DBHolder{
         val job = "job_" + tagMap.getOrElse("jobid", 0).asInstanceOf[String]
         println(host + "\t" + job)
 
+        val dpsMap: Map[String, Double] = parse(row(1).asInstanceOf[String]).values.asInstanceOf[Map[String, Double]]
+        val relation: String = dpsMap.map(_.productIterator.mkString(":")).mkString(",")
+        println(relation)
+//        dpsMap.foreach{ case (key: String, value: Any) => println(">>> key=" + key + ", value=" + value)}
+
+
         val query = "MERGE(h:host {host_id: {host_id}})" +
                 "MERGE (j:job {job_id: {job_id}})" +
-                "MERGE (h)- [r:mem_usage]-(j)"
+                "MERGE (h)- [r:relation}]-(j)"
         write(query, parameters("host_id", host, "job_id", job))
+//        MATCH (h:host)-[r:mem_usage]-(j:job{job_id:'job_15016813'})
+//        with reduce(result='t:m', e in collect(r) | result+ ','+e.relation_id ) as newVal
+//                set r.relation_id= newVal
 
+        val newQuery = "MATCH (h:host {host_id: {host_id} })-[r:relation]-(j: job {job_id: {job_id} })" +
+                " SET r.mem_usage = '[%s]' return r".format(relation)
+        write(newQuery, parameters("host_id", host, "job_id", job))
 
-        val dpsMap: Map[String, Double] = parse(row(1).asInstanceOf[String]).values.asInstanceOf[Map[String, Double]]
-        //dpsMap.foreach{ case (key: String, value: Any) => println(">>> key=" + key + ", value=" + value)}
-
-        var counter: Int = 0
-        for ((k, v) <- dpsMap) {
-            val relationKey = "id_" + counter
-            System.out.println("""relation_id: %s  | timestamp: %s, memory: %s """.format(relationKey, k, v ))
-            val newQuery = "MATCH (h:host {host_id: {host_id} })-[r:mem_usage]-(j: job {job_id: {job_id} })" +
-                    " SET r.%s = '[timestamp = %s , memory = %s]' return r".format(relationKey, k, v.toString)
-            write(newQuery, parameters("host_id", host, "job_id", job))
-            counter = counter + 1
-        }
+        /* var counter: Int = 0
+         for ((k, v) <- dpsMap) {
+             val relationKey = "id_" + counter
+             System.out.println("""relation_id: %s  | timestamp: %s, memory: %s """.format(relationKey, k, v ))
+             val newQuery = "MATCH (h:host {host_id: {host_id} })-[r:mem_usage]-(j: job {job_id: {job_id} })" +
+                     " SET r.%s = '[timestamp = %s , memory = %s]' return r".format(relationKey, k, v.toString)
+             write(newQuery, parameters("host_id", host, "job_id", job))
+             counter = counter + 1
+         }*/
     }
+//    val query = "MERGE(h:host {host_id: {host_id}})" +
+//            "MERGE (j:job {job_id: {job_id}})" +
+//            "MERGE (h)- [r:relation {mem_usage:{relation_id}}]-(j)"
+//    write(query, parameters("host_id", host, "job_id", job, "relation_id", relation_id))
+
 
 }
 

@@ -12,10 +12,10 @@ object DriverApp {
     case class Log(aggregateTags: List[String], dps: Map[String, Float], metric: String, tags: Tag)
 
     def main(args: Array[String]): Unit = {
-        System.out.println("--------------------------- STARTING  THE SPARK APPLICATION -------------------")
+        System.out.println("\n --------------------------- STARTING  THE SPARK APPLICATION -------------------")
         var jsonFilePath = "/users/kent/jmaharja/opt/Projects/Neo4j_project/single.json"
 
-        System.out.println("\n-------------------------- ARGUMENTS--------------------------------------------")
+        System.out.println("\n -------------------------- ARGUMENTS--------------------------------------------")
         args.foreach(println)
 
         if(args.length > 0) {
@@ -24,15 +24,9 @@ object DriverApp {
 
         // val tags = StructType(StructField("host", StringType)::StructField("job", StringType)::Nil)
         val schema = StructType(StructField("metric", StringType) :: StructField("dps", StringType) :: StructField("tags", StringType) :: Nil)
-        //        val schema = Encoders.product[Log].schema
         val spark = SparkSession.builder
                 .appName("Neo4j LOADER")
-//                .config("spark.master", "spark://jupiter:7077")
-//                .config("spark.shuffle.service.enabled", "false")
-//                .config("spark.dynamicAllocation.enabled", "false")
-//                .config("spark.io.compression.codec", "snappy")
-//                .config("spark.rdd.compress", "true")
-                // .config("spark.cores.max", "16")
+                //.config("spark.master", "spark://jupiter:7077")
                 .getOrCreate()
 
 
@@ -42,24 +36,8 @@ object DriverApp {
         System.out.println("\n --------------------------- Estimation: %s", SizeEstimator.estimate(dataFrame))
 
         dataFrame.printSchema()
-//        dataFrame.createOrReplaceTempView("node")
-//        val df = spark.sqlContext.sql("select tags.host as host, tags.jobid as job, dps from node").persist(StorageLevel.MEMORY_ONLY_SER_2)
-        System.out.println("-------------------------- WRITING TO NEO4J DATABASE----------------------------")
-//        val rdd = df.repartition(16).rdd.persist(StorageLevel.MEMORY_ONLY_SER_2)
-//        dataFrame.toDF().take(10000).foreach(t=>println(t(0)+ "\t"+t(1))+ "\t" + t(2))
-
-//        dataFrame.toDF().take(10000).foreach(DBHolder.prepareAndWrite(_))//TODO
-//        dataFrame.toDF().collect().foreach(DBHolder.prepareAndWrite(_))
-        /* val parts = dataFrame.toDF().rdd.partitions
-         for(p <- parts){
-             val idx = p.index
-             val partRDD = dataFrame.toDF().rdd.mapPartitionsWithIndex((index: Int, it: Iterator[org.apache.spark.sql.Row]) => if(index == idx) it else Iterator(), true)
-             //The second argument is true to avoid rdd reshuffling
-             val data = partRDD.collect //data contains all values from a single partition
-             data.foreach(DBHolder.prepareAndWrite(_))
-             //in the form of array
-             //Now you can do with the data whatever you want: iterate, save to a file, etc.
-         }*/
+        System.out.println("\n -------------------------- WRITING TO NEO4J DATABASE----------------------------")
+//                dataFrame.toDF().take(1000).foreach(DBHolder.prepareAndWrite(_))
         dataFrame.toDF().rdd.repartition(16).foreachPartition(partition => {
             val newPartition = partition.map(x => {
                 DBHolder.prepareAndWrite(x)
@@ -67,16 +45,9 @@ object DriverApp {
             newPartition.iterator
         })
 
-        /*val newrdd = dataFrame.toDF().repartition(64).rdd.mapPartitions(partition => {
-                 val newPartition = partition.map(x => {
-                     DBHolder.prepareAndWrite(x)
-                 }).toList
-                 newPartition.iterator
-             }).persist(StorageLevel.MEMORY_ONLY_SER_2)*/
-//        System.out.println("\n --------------------------- Estimation: %s", SizeEstimator.estimate(newrdd))
-        System.out.println("-------------------------- Successful !! ------------------------------------------------------")
-//        System.out.println("-------------------------- Total "+ newrdd.count()+ " nodes written to NEO4J Database. --------- ")
-        System.out.println("-------------------------- Shutting down APACHE SPARK !! ---------------------------------------")
+        System.out.println("\n -------------------------- Successful !! ------------------------------------------------------")
+//        System.out.println("\n -------------------------- Total "+ newrdd.count()+ " nodes written to NEO4J Database. --------- ")
+        System.out.println("\n -------------------------- Shutting down APACHE SPARK !! ---------------------------------------")
         spark.close()
         spark.stop()
 
