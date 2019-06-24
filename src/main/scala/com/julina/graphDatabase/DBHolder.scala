@@ -9,19 +9,21 @@ object DBHolder{
     val driver: Driver = GraphDatabase.driver("bolt://wasp.cs.kent.edu/7687", AuthTokens.basic("neo4j", "password"))
 
     def write(query: String, parameters: Value): Unit = {
+        val session = driver.session
         try {
-            val session = driver.session
-            try
-                session.writeTransaction(new TransactionWork[Integer]() {
-                    @Override
-                    def execute(tx: Transaction): Integer = {
-                        tx.run(query, parameters)
-                        tx.success()
-                        1
-                    }
-                })
-            finally if (session != null) session.close()
+            session.writeTransaction(new TransactionWork[Integer]() {
+                @Override
+                def execute(tx: Transaction): Integer = {
+                    tx.run(query, parameters)
+                    tx.success()
+                    1
+                }
+            })
         }
+        catch {
+            case _: Throwable => println("Exception")
+        }
+        finally if (session != null) session.close()
     }
 
     def close(): Unit = {
@@ -40,12 +42,10 @@ object DBHolder{
         val relation: String = dpsMap.map(_.productIterator.mkString(":")).mkString(",")
         println(relation)
 
-        if (relation == null || relation.isEmpty) {
-            val query = "MERGE (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}})"
-            write(query, parameters("host_id", host, "job_id", job))
-        }
-        else {
-            val query = "MERGE (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}}) " +
+        val query = "MERGE (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}})"
+        write(query, parameters("host_id", host, "job_id", job))
+        if (relation != null && !relation.isEmpty) {
+            val query = "MATCH (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}}) " +
                     "with reduce(result={relation_val}, e in collect(r.mem_usage) | result + ','+ e ) as new_relation, r,h,j " +
                     "MERGE (h)-[r2:relation]-(j) " +
                     "SET r2.mem_usage = new_relation "
