@@ -29,32 +29,28 @@ object DBHolder{
     }
 
     def prepareAndWrite(row: Row): Unit = {
-        //println(row(2).asInstanceOf[String] +"::"+ row(1).asInstanceOf[String] )
-
         val tagMap: Map[String, Int] = parse(row(2).asInstanceOf[String]).values.asInstanceOf[Map[String, Int]]
         //tagMap.foreach{ case (key: String, value: String) => println(">>> key=" + key + ", value=" + value)}
-
         val host = tagMap.getOrElse("host", "null_host").asInstanceOf[String]
         val job = "job_" + tagMap.getOrElse("jobid", 0).asInstanceOf[String]
         println(host + "\t" + job)
 
         val dpsMap: Map[String, Double] = parse(row(1).asInstanceOf[String]).values.asInstanceOf[Map[String, Double]]
+        //dpsMap.foreach{ case (key: String, value: Any) => println(">>> key=" + key + ", value=" + value)}
         val relation: String = dpsMap.map(_.productIterator.mkString(":")).mkString(",")
         println(relation)
-//        dpsMap.foreach{ case (key: String, value: Any) => println(">>> key=" + key + ", value=" + value)}
 
-
-        val query = "MERGE(h:host {host_id: {host_id}})" +
-                "MERGE (j:job {job_id: {job_id}})" +
-                "MERGE (h)- [r:relation}]-(j)"
-        write(query, parameters("host_id", host, "job_id", job))
-//        MATCH (h:host)-[r:mem_usage]-(j:job{job_id:'job_15016813'})
-//        with reduce(result='t:m', e in collect(r) | result+ ','+e.relation_id ) as newVal
-//                set r.relation_id= newVal
-
-        val newQuery = "MATCH (h:host {host_id: {host_id} })-[r:relation]-(j: job {job_id: {job_id} })" +
-                " SET r.mem_usage = '[%s]' return r".format(relation)
-        write(newQuery, parameters("host_id", host, "job_id", job))
+        if (relation == null || relation.isEmpty) {
+            val query = "MERGE (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}})"
+            write(query, parameters("host_id", host, "job_id", job))
+        }
+        else {
+            val query = "MERGE (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}}) " +
+                    "with reduce(result={relation_val}, e in collect(r.mem_usage) | result + ','+ e ) as new_relation, r,h,j " +
+                    "MERGE (h)-[r2:relation]-(j) " +
+                    "SET r2.mem_usage = new_relation "
+            write(query, parameters("host_id", host, "job_id", job, "relation_val", relation))
+        }
 
         /* var counter: Int = 0
          for ((k, v) <- dpsMap) {
@@ -66,11 +62,6 @@ object DBHolder{
              counter = counter + 1
          }*/
     }
-//    val query = "MERGE(h:host {host_id: {host_id}})" +
-//            "MERGE (j:job {job_id: {job_id}})" +
-//            "MERGE (h)- [r:relation {mem_usage:{relation_id}}]-(j)"
-//    write(query, parameters("host_id", host, "job_id", job, "relation_id", relation_id))
-
 
 }
 
