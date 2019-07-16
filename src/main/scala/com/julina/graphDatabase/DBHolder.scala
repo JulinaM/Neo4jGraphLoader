@@ -49,9 +49,15 @@ object DBHolder{
         write(query, parameters("host_id", host, "job_id", job))
         if (relation != null && !relation.isEmpty) {
             val query = "MATCH (h:host {host_id: {host_id}}) - [r:relation] - (j:job {job_id: {job_id}}) " +
-                    "with reduce(result={relation_val}, e in collect(r.mem_usage) | result + ','+ e ) as new_relation, r,h,j " +
+//                    "with reduce(result={relation_val}, e in collect(r.mem_usage) | result + ','+ e ) as new_relation, r,h,j " +
               //                    "MERGE (h)-[r2:relation]-(j) " +
-              "SET r.mem_usage = new_relation "
+                    "CASE " +
+                    "WHERE exists(r.mem_usage) THEN " +
+                    "SET r.mem_usage = r.mem_usage + ',' + {relation_val}" +
+                    "ELSE" +
+                    "SET r.mem_usage = {relation_val}" +
+                    "END AS result"
+
             write(query, parameters("host_id", host, "job_id", job, "relation_val", relation))
         }
 
